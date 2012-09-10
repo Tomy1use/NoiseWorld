@@ -8,12 +8,13 @@ Frustum transform(const Frustum& in, const Matrix& matrix)
         transform(in.planes[0], matrix), 
         transform(in.planes[1], matrix), 
         transform(in.planes[2], matrix),
-        transform(in.planes[3], matrix));
+        transform(in.planes[3], matrix),
+		transform(in.planes[4], matrix));
 }
 
-bool touch(const Frustum& frustum, const Vector& center, float radius)
+bool isSpherePartInFrustum(const Vector& center, float radius, const Frustum& frustum)
 {
-    for(int i=0; i<4; i++){
+    for(int i=0; i<5; i++){
         if(distance(frustum.planes[i], center) < -radius){
             return false;
         }
@@ -24,15 +25,14 @@ bool touch(const Frustum& frustum, const Vector& center, float radius)
 
 Frustum pyramidFrustum(float width, float height, float focalDistance)
 {
-    float clipY = .999f;
-    float clipX = .999f * width / height;
-    Vector A(-clipX, -clipY, focalDistance);
-    Vector B(-clipX, +clipY, focalDistance);
-    Vector C(+clipX, +clipY, focalDistance);
-    Vector D(+clipX, -clipY, focalDistance);
+    Vector A(-width/2, -height/2, focalDistance);
+    Vector B(-width/2, +height/2, focalDistance);
+    Vector C(+width/2, +height/2, focalDistance);
+    Vector D(+width/2, -height/2, focalDistance);
     Vector E(0, 0, 0);
     return Frustum(
-        planeFromPoints(A, B, E),
+        Plane(Vector(0,0,-1), 0),
+		planeFromPoints(A, B, E),
         planeFromPoints(B, C, E),
         planeFromPoints(C, D, E),
         planeFromPoints(D, A, E));
@@ -45,5 +45,7 @@ Frustum corridorFrustum(float width, float height)
         Plane(Vector(+1, 0, 0), -width/2+.001f),
         Plane(Vector(-1, 0, 0), -width/2+.001f),
         Plane(Vector(0, +1, 0), -height/2+.001f),
-        Plane(Vector(0, -1, 0), -width/2+.001f));
+        Plane(Vector(0, -1, 0), -width/2+.001f),
+		Plane(Vector(0,0,-1), 0)
+	);
 }

@@ -107,7 +107,7 @@ extern void visualizeTextureSampling();
 extern void centerWindow(HWND window, int width, int height);
 
 extern void CreateWorld();
-extern void RenderWorld();
+extern void RenderWorld(const Vector& viewer, const Frustum& frustum);
 extern void RenderWorldGUI();
 extern bool WorldMouseMove(float x, float y);
 extern void WorldLeftMouseUp();
@@ -221,8 +221,8 @@ struct View
 	}
 	HWND createWindow(int width, int height)
 	{
-		const char* ClassName = "ShapecraftClass";
-		const char* Title = "Shapecraft";
+		const char* ClassName = "NoiseWorldClass";
+		const char* Title = "Noise World";
 		WNDCLASSEX c = { sizeof(WNDCLASSEX), CS_CLASSDC, DefWindowProc, 0L, 0L, 
 			GetModuleHandle(NULL), NULL, NULL, NULL, NULL,
 			ClassName, NULL };
@@ -280,7 +280,7 @@ struct Game
         , view(width, height)
 		, font(NULL)
         , frameIndex(0)
-        , cameraMatrix(matrixLookAt(Vector(3, 50, 30), ZeroVector))
+        , cameraMatrix(matrixLookAt(Vector(3, 5000, 30), ZeroVector))
 		, cameraSpeed(CarSpeed)
         , fullTime(0)
         , bgColor(0xff00FFff)
@@ -407,6 +407,7 @@ struct Game
     }
     Plane snapPlane()
     {
+		return Plane(Vector(0,1,0), 0);
         Vector z = nearestAxis(cameraMatrix.axes.z);
         //Vector z = nearestAxis(cameraMatrix.origin - pivot);
         return planeFromPointNormal(pivot, z);
@@ -495,7 +496,7 @@ struct Game
 		glDisable(GL_BLEND);
 		glEnable(GL_TEXTURE_2D);
 		glActiveTexture(GL_TEXTURE0);
-		RenderWorld();
+		RenderWorld(cameraMatrix.origin, cameraFrustum());
 		glDisable(GL_TEXTURE_2D);
 
 		{
@@ -506,19 +507,6 @@ struct Game
 			glLoadIdentity();
 			RenderWorldGUI();
 		}
-		
-		/*
-		setupViewerProjection(clientRect);
-		float viewProjMatrix[16] = {1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1};
-		getViewProjMatrix(cameraMatrix, viewProjMatrix);
-		glEnable(GL_DEPTH_TEST);
-		glShadeModel(GL_FLAT);
-		glMatrixMode(GL_MODELVIEW);
-		glLoadMatrix(cameraMatrix.in(UnitMatrix));
-		//glUseProgram(checkerProgram);
-		//drawSnapPlane(snapPlane(), .5f);
-		//glUseProgram(0);
-		*/
 		
         glFlush();
 		glFinish();
@@ -532,12 +520,19 @@ struct Game
         glViewport(0, 0, clientRect.right, clientRect.bottom);
 		glMatrixMode(GL_PROJECTION);
 		glLoadIdentity();
-		float Near = .1f, Far = 99999.f;
+		float Near = 1.f, Far = 99999.f;
 		float aspect = float(clientRect.right)/float(clientRect.bottom);
 		float L = -tan(fov)*Near, R = +tan(fov)*Near;
 		float B = -tan(fov)*Near/aspect, T = +tan(fov)*Near/aspect;
 		glFrustum(L, R, B, T, Near, Far);
     }
+	Frustum cameraFrustum()
+	{
+		RECT client;
+		GetClientRect(view.window, &client);
+		Frustum f = pyramidFrustum(float(client.right), float(client.bottom), .5f*float(client.right)/tan(fov));
+		return transform(f, cameraMatrix);
+	}
 	void getViewProjMatrix(const Matrix& cameraMatrix, float viewProjMatrix[16])
 	{
 		glMatrixMode(GL_PROJECTION);

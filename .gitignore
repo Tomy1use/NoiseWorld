@@ -1,12 +1,7 @@
-# Compiled Object files
-*.slo
-*.lo
-*.o
-
-# Compiled Dynamic libraries
-*.so
-
-# Compiled Static libraries
-*.lai
-*.la
-*.a
+VisualStudio/Debug/*
+VisualStudio/Release/*
+VisualStudio/ipch/*
+VisualStudio/*.suo
+VisualStudio/*.sdf
+VisualStudio/*.opensdf
+VisualStudio/*.vcxproj.user

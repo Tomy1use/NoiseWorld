@@ -87,6 +87,9 @@
     <ClCompile Include="..\src\PerlinNoise.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\AtmosphereDisplayList.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\src\FloatToString\PowerOfTwoStrings.h">

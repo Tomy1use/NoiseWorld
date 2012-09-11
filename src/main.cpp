@@ -78,7 +78,6 @@ PFNGLUNIFORMMATRIX4FVPROC glUniformMatrix4fv = NULL;
 PFNGLUNIFORM1IPROC glUniform1i = NULL;
 PFNGLPROGRAMPARAMETERIPROC glProgramParameteri = NULL;
 #include <glGeneralCylinder.h>
-#include <glSkyDome.h>
 extern void glCrossPlanes(const Vector& P, float S);
 #include <args.h>
 #include <BoxSide.h>
@@ -98,12 +97,10 @@ void glSphereQuarter(const Vector& K, const Vector& A, const Vector& B, const Ve
 #include <AboutBox.h>
 #include <FileEnvironment.h>
 #include <IcosahedronRenderPiece.h>
-#include <SkyRenderPiece.h>
 extern void makeScreenshot(HWND window, const char* fileName);
 extern GLuint createShaderProgram(const char* vertexShaderFileName, const char* pixelShaderFileName, const char* geometryShaderFileName);
 extern GLuint subdivideIcosahedronDisplayList(int depth);
-
-extern void visualizeTextureSampling();
+extern int createAtmosphereDisplayList();
 extern void centerWindow(HWND window, int width, int height);
 
 extern void CreateWorld();
@@ -256,7 +253,7 @@ struct Game
     bool isFogOn, isShadowOn, isShadowDrawn;
     float fov;
     ZoomDragMatrix zoomDragMatrix;
-	SkyRenderPiece skyRenderPiece;
+	GLint atmoDispList;
 	GLuint oneLightProgram;
 	GLuint oneLightSpecEnvProgram;
 	GLuint oneLightShadowProgram;
@@ -314,6 +311,7 @@ struct Game
 				"glsl/GeometryShader.glsl"
 				//NULL
 				);
+		atmoDispList = createAtmosphereDisplayList();
 		CreateWorld();
     }
 	~Game()
@@ -436,13 +434,13 @@ struct Game
         RECT clientRect;
         GetClientRect(view.window, &clientRect);
         
-		glClearColor(.5f, .5f, 1.f, 0);
+		glClearColor(0, 0, 0, 0);
         glColorMask(1, 1, 1, 1);
         glDepthMask(1);
         glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
         glDisable(GL_TEXTURE_2D);
         glFrontFace(GL_CCW);
-        if(0){
+        if(1){
 			setupViewerProjection(clientRect);
 			glMatrixMode(GL_MODELVIEW);
 			glLoadMatrix(Matrix(cameraMatrix.axes, ZeroVector).in(UnitMatrix));
@@ -467,14 +465,16 @@ struct Game
 				glPushMatrix();
 					glTranslate(-sunDir * 20);
 					glColor3f(.3f, .3f, 0);
-					glCallList(subIcoDispList1);
+					glCallList(subIcoDispList2);
 				glPopMatrix();
 			}
-			if(0){//sky dome
+			if(1){//atmosphere
 				glUseProgram(0);
+				glDisable(GL_FOG);
 				glCullFace(GL_FRONT);
 				glShadeModel(GL_SMOOTH);
-				glCallList(skyRenderPiece.dispList);
+				glScalef(5,5,5);
+				glCallList(atmoDispList);
 			}
 		}
 		glUseProgram(0);

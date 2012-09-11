@@ -68,6 +68,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="..\src\AtmosphereDisplayList.cpp" />
     <ClCompile Include="..\src\error.cpp" />
     <ClCompile Include="..\src\FloatToString\FloatToString.cpp" />
     <ClCompile Include="..\src\GL\glCrossPlanes.cpp" />

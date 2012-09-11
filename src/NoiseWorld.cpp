@@ -156,7 +156,7 @@ float* calcMapShade(Vector* norms)
 	return shade;
 }
 
-Vector* createHeightMap(const Vector& BoxMin, const Vector& BoxMax)
+Vector* createHeightMap(const Vector& BoxMin, const Vector& BoxMax, float& outMinY, float& outMaxY)
 {
 	Vector* verts = new Vector[MapReso*MapReso];
 	const float periods[] = {
@@ -172,6 +172,7 @@ Vector* createHeightMap(const Vector& BoxMin, const Vector& BoxMax)
 	float totalPeriod = 0;
 	for(int i=0; i<periodCount; i++) totalPeriod += periods[i];
 	float invTotalPeriod = 1.f / totalPeriod;
+	float minY = 1000000, maxY = -1000000;
 	for(int z=0; z<MapReso; z++){
 		for(int x=0; x<MapReso; x++){
 			Vector& v = get(verts, x, z);
@@ -183,8 +184,12 @@ Vector* createHeightMap(const Vector& BoxMin, const Vector& BoxMax)
 			}
 			h = h * 1.2f + .5f;
 			v.y = mapCurve(h) * 1500;
+			if(v.y < minY) minY = v.y;
+			if(maxY < v.y) maxY = v.y;
 		}
 	}
+	outMinY = minY;
+	outMaxY = maxY;
 	return verts;
 }
 
@@ -251,7 +256,7 @@ void createPatchDisplayList(MapPatch& patch)
 
 void createPatchArrays(MapPatch& patch)
 {
-	patch.verts = createHeightMap(patch.boxMin, patch.boxMax);
+	patch.verts = createHeightMap(patch.boxMin, patch.boxMax, patch.boxMin.y, patch.boxMax.y);
 	patch.norms = calcMapNormals(patch.verts);
 	patch.shade = calcMapShade(patch.norms);
 }
@@ -474,6 +479,26 @@ Frus calcFrus(const Matrix& M, float aspect, float fov)
 	return f;
 }
 
+void drawCumulusClouds()
+{
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	glEnable(GL_TEXTURE_2D);
+	glBindTexture(GL_TEXTURE_2D, cloudsTexture);
+	glDisable(GL_CULL_FACE);
+	glBegin(GL_QUADS);
+		glColor3f(1, 1, 1);
+		glTexCoord2f(0, 0);
+		glVertex3f(CloudsMin.x, CloudsMin.y, CloudsMin.z);
+		glTexCoord2f(0, 1);
+		glVertex3f(CloudsMin.x, CloudsMin.y,  CloudsMax.z);
+		glTexCoord2f(1, 1);
+		glVertex3f(CloudsMax.x, CloudsMin.y,  CloudsMax.z);
+		glTexCoord2f(1, 0);
+		glVertex3f(CloudsMax.x, CloudsMin.y, CloudsMin.z);
+	glEnd();
+}
+
 void RenderWorld(const Matrix& cameraMatrix, float aspect, float fov)
 {
 	Matrix G = cameraMatrix;// makeGroundMatrix(cameraMatrix);
@@ -488,25 +513,7 @@ void RenderWorld(const Matrix& cameraMatrix, float aspect, float fov)
 	glFogf(GL_FOG_DENSITY, .00003f);
 	glShadeModel(GL_SMOOTH);
 	drawPatchRecur(rootMapPatch, f);
-	if(1){
-		// Cumulus clouds
-		glEnable(GL_BLEND);
-		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-		glEnable(GL_TEXTURE_2D);
-		glBindTexture(GL_TEXTURE_2D, cloudsTexture);
-		glDisable(GL_CULL_FACE);
-		glBegin(GL_QUADS);
-			glColor3f(1, 1, 1);
-			glTexCoord2f(0, 0);
-			glVertex3f(CloudsMin.x, CloudsMin.y, CloudsMin.z);
-			glTexCoord2f(0, 1);
-			glVertex3f(CloudsMin.x, CloudsMin.y,  CloudsMax.z);
-			glTexCoord2f(1, 1);
-			glVertex3f(CloudsMax.x, CloudsMin.y,  CloudsMax.z);
-			glTexCoord2f(1, 0);
-			glVertex3f(CloudsMax.x, CloudsMin.y, CloudsMin.z);
-		glEnd();
-	}
+	drawCumulusClouds();
 	glDisable(GL_BLEND);
 	glColor3f(1,1,1);
 	drawFrustumForMatrix(G, aspect, fov);

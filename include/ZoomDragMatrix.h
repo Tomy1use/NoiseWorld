@@ -10,8 +10,8 @@ struct ZoomDragMatrix
         RECT client; 
         GetClientRect(window, &client);
         float aspect = float(client.right)/float(client.bottom);
-        float x = (float(cursor.x) / float(client.right) * 2 - 1) * tan(fov);
-        float y = -(float(cursor.y) / float(client.bottom) * 2 - 1) * tan(fov) / aspect;
+        float x = (float(cursor.x) / float(client.right) * 2 - 1) * tan(fov/2);
+        float y = -(float(cursor.y) / float(client.bottom) * 2 - 1) * tan(fov/2) / aspect;
         Vector hit, ray = -camera.axes.z + camera.axes.x * x + camera.axes.y * y;
         if(! planeHitRay(snapPlane, camera.origin, ray, hit)) return camera;
         Matrix result = camera;

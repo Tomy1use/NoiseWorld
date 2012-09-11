@@ -104,7 +104,7 @@ extern int createAtmosphereDisplayList();
 extern void centerWindow(HWND window, int width, int height);
 
 extern void CreateWorld();
-extern void RenderWorld(const Vector& viewer, const Frustum& frustum);
+extern void RenderWorld(const Matrix& cameraMatrix, float aspect, float fov);
 extern void RenderWorldGUI();
 extern bool WorldMouseMove(float x, float y);
 extern void WorldLeftMouseUp();
@@ -284,7 +284,7 @@ struct Game
         , sunDir(unit(Vector(-1, -4, -2)))
 		, sunPos(-sunDir * 50)
         , isFogOn(false), isShadowOn(false), isShadowDrawn(false)
-        , fov(Pi/6)
+        , fov(Pi/3)
 		, subIcoDispList0(subdivideIcosahedronDisplayList(0))
 		, subIcoDispList1(subdivideIcosahedronDisplayList(1))
 		, subIcoDispList2(subdivideIcosahedronDisplayList(2))
@@ -496,7 +496,7 @@ struct Game
 		glDisable(GL_BLEND);
 		glEnable(GL_TEXTURE_2D);
 		glActiveTexture(GL_TEXTURE0);
-		RenderWorld(cameraMatrix.origin, cameraFrustum());
+		RenderWorld(cameraMatrix, float(clientRect.right)/float(clientRect.bottom), fov);
 		glDisable(GL_TEXTURE_2D);
 
 		{
@@ -522,17 +522,11 @@ struct Game
 		glLoadIdentity();
 		float Near = 1.f, Far = 99999.f;
 		float aspect = float(clientRect.right)/float(clientRect.bottom);
-		float L = -tan(fov)*Near, R = +tan(fov)*Near;
-		float B = -tan(fov)*Near/aspect, T = +tan(fov)*Near/aspect;
+		float F = tanf(fov/2);
+		float L = -F*Near, R = +F*Near;
+		float B = -F*Near/aspect, T = +F*Near/aspect;
 		glFrustum(L, R, B, T, Near, Far);
     }
-	Frustum cameraFrustum()
-	{
-		RECT client;
-		GetClientRect(view.window, &client);
-		Frustum f = pyramidFrustum(float(client.right), float(client.bottom), .5f*float(client.right)/tan(fov));
-		return transform(f, cameraMatrix);
-	}
 	void getViewProjMatrix(const Matrix& cameraMatrix, float viewProjMatrix[16])
 	{
 		glMatrixMode(GL_PROJECTION);

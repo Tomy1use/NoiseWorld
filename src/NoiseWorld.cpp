@@ -11,13 +11,39 @@
 #include <Math/RandomNumber.h>
 #include <Math/Plane.h>
 #include <Math/PlaneFunc.h>
-#include <Math/FrustumFunc.h>
 #include <stdio.h>
 #include <Color.h>
 #include <stdlib.h>
 #include <PerlinNoise.h>
 extern void glFastBox(float L, float B, float K, float R, float T, float F);
 extern void glTexBox(float L, float B, float K, float R, float T, float F);
+
+struct Frus
+{
+	static const int PlaneCount = 5;
+	Plane p[PlaneCount];
+};
+
+bool isBoxBehindPlane(const Vector& BoxMin, const Vector& BoxMax, const Plane& p)
+{
+	for(int v=0; v<8; v++){
+		float x = (v & 1) ? BoxMax.x : BoxMin.x;
+		float y = (v & 2) ? BoxMax.y : BoxMin.y;
+		float z = (v & 4) ? BoxMax.z : BoxMin.z;
+		if(distance(p, Vector(x,y,z)) > 0) return false;
+	}
+	return true;
+}
+
+bool isBoxPartInFrus(const Vector& BoxMin, const Vector& BoxMax, const Frus& f)
+{
+	for(int i=0; i<Frus::PlaneCount; i++){
+		if(isBoxBehindPlane(BoxMin, BoxMax, f.p[i])){
+			return false;
+		}
+	}
+	return true;
+}
 
 struct MapPatch;
 void putPatchInQueue(MapPatch* patch);
@@ -56,20 +82,6 @@ Vector nearestBoxPoint(const Vector& boxMin, const Vector& boxMax, const Vector&
 	return Vector(x, y, z);
 }
 
-/*
-	take root patch
-	if near enough to viewer:
-		if not subdivided:
-			if maximum level of detail not reached:
-				subdivide it
-				create subpatches, fill with landscape data
-	else:
-		if has children, remove children
-*/
-
-
-
-
 float curve(float h)
 {
 	const float z[] = {0, .05f, .07f, .12f, .35f, .6f, 1.f};
@@ -101,7 +113,7 @@ struct Curve
 };
 
 const Vector MapMin(-35000, 0, -35000);
-const Vector MapMax(35000, 0, 35000);
+const Vector MapMax(35000, 3000, 35000);
 
 const int MapReso = 100;
 Vector& get(Vector* map, int x, int z) {return map[z*MapReso+x];}
@@ -116,11 +128,6 @@ const int CloudsReso = 1000;
 float* cloudsMap = NULL;
 float& getCloudsPoint(int x, int z) {return cloudsMap[z * CloudsReso + x];}
 GLuint cloudsTexture = 0;
-
-GLuint atmoTexture = 0;
-
-//Vector testViewer(3333,0,1111);
-//Frustum testFrustum = transform(pyramidFrustum(640, 480, 300),matrixFromOriginAxisZ(testViewer, unit(Vector(0,0,2))));
 
 Vector* calcMapNormals(Vector* verts)
 {
@@ -249,11 +256,12 @@ void createPatchArrays(MapPatch& patch)
 	patch.shade = calcMapShade(patch.norms);
 }
 
-void initMapPatch(MapPatch& patch, const Vector& BoxMin, const Vector& BoxMax)
+void initRootMapPatch(MapPatch& patch, const Vector& BoxMin, const Vector& BoxMax)
 {
 	patch.boxMin = BoxMin, patch.boxMax = BoxMax;
 	createPatchArrays(patch);
 	createPatchDisplayList(patch);
+	patch.arraysReady = true;
 }
 
 void deletePatchChildren(MapPatch& patch)
@@ -285,7 +293,7 @@ void subdivPatch(MapPatch& patch)
 	}
 }
 
-const int PatchQueueSize = 250;
+const int PatchQueueSize = 1000;
 MapPatch* patchQueue[PatchQueueSize];
 int queuePatchCount = 0;
 //TODO: patch queue critical section
@@ -296,6 +304,7 @@ void putPatchInQueue(MapPatch* patch)
 	EnterCriticalSection(&queueCritSect);
 		if(queuePatchCount < PatchQueueSize){
 			patchQueue[queuePatchCount++] = patch;
+			printf("%d\n", queuePatchCount);
 		}else{
 			printf("Patch queue overflow\n");
 		}
@@ -309,6 +318,7 @@ void shiftPatchQueue()
 			patchQueue[i] = patchQueue[i+1];
 		}
 		queuePatchCount--;
+		printf("%d\n", queuePatchCount);
 	LeaveCriticalSection(&queueCritSect);
 }
 
@@ -329,13 +339,7 @@ void CreateWorld()
 {
 	createCloudsMap();
 	createCloudsTexture();
-	initMapPatch(rootMapPatch, MapMin, MapMax);
-	//subdivPatch(rootMapPatch);
-	//subdivPatch(rootMapPatch.children[0]);
-	//subdivPatch(rootMapPatch.children[0].children[3]);
-	//subdivPatch(rootMapPatch.children[0].children[3].children[3]);
-	//subdivPatch(rootMapPatch.children[0].children[3].children[3].children[3]);
-	//subdivPatch(rootMapPatch.children[0].children[3].children[3].children[3].children[3]);
+	initRootMapPatch(rootMapPatch, MapMin, MapMax);
 	InitializeCriticalSection(&queueCritSect);
 	CreateThread(NULL, 0, LPTHREAD_START_ROUTINE(patchQueueThreadProc), NULL, 0, NULL);
 }
@@ -365,7 +369,7 @@ bool patchChildrenReady(const MapPatch& p)
 
 bool isPatchChildrenSafeToDelete(const MapPatch& p)
 {
-	if(! p.children) return false;
+	if(! p.children) return true;
 	for(int i=0; i<4; i++){
 		if(! isPatchChildrenSafeToDelete(p.children[i])) return false;
 		if(! p.children[i].arraysReady) return false;
@@ -373,16 +377,14 @@ bool isPatchChildrenSafeToDelete(const MapPatch& p)
 	return true;
 }
 
-void drawPatchRecur(MapPatch& patch, const Frustum& frustum)
+void drawPatchRecur(MapPatch& patch, const Frus& frus)
 {
-	Vector c = (patch.boxMin + patch.boxMax) / 2;
-	float r = length(patch.boxMax - patch.boxMin) / 2;
-	if(! isSpherePartInFrustum(c, r, frustum)){
+	if(! isBoxPartInFrus(patch.boxMin, patch.boxMax, frus)){
 		return;
 	}
 	if(patchChildrenReady(patch)){
 		for(int i=0; i<4; i++){
-			drawPatchRecur(patch.children[i], frustum);
+			drawPatchRecur(patch.children[i], frus);
 		}
 	}else{
 		glCallList(patch.dispList);
@@ -405,31 +407,88 @@ void processPatchDetail(MapPatch& patch, const Vector& viewer)
 	}
 	if(isViewerNearPatch(patch, viewer)){
 		if(! patch.children){
-			float reso = (patch.boxMax.x - patch.boxMin.x) / float(MapReso-1);
-			if(reso > 1.f){
-				subdivPatch(patch);
+			if(patch.arraysReady){
+				float reso = (patch.boxMax.x - patch.boxMin.x) / float(MapReso-1);
+				if(reso > 1.f){
+					subdivPatch(patch);
+				}
 			}
 		}
 		return;
 	}else{
-		if(isPatchChildrenSafeToDelete(patch)){
-			deletePatchChildren(patch);
+		if(patch.children){
+			if(isPatchChildrenSafeToDelete(patch)){
+				deletePatchChildren(patch);
+			}
 		}
 	}
 }
 
-void RenderWorld(const Vector& viewer, const Frustum& frustum)
+
+
+Matrix makeGroundMatrix(const Matrix& M)
 {
-	processPatchDetail(rootMapPatch, viewer);
+	Matrix G;
+	G.origin = M.origin;
+	G.origin.y = 300;
+	G.axes.x = M.axes.x;
+	G.axes.y = UnitVectorY;
+	G.axes.z = unit(cross(G.axes.x, G.axes.y));
+	return G;
+}
+
+void drawFrustumForMatrix(const Matrix& M, float aspect, float fov)
+{
+	float d = 15000;
+	float x = tanf(fov/2);
+	float y = x / aspect;
+	Vector v[4] = {
+		M.origin + (-M.axes.z - M.axes.x * x - M.axes.y * y) * d,
+		M.origin + (-M.axes.z - M.axes.x * x + M.axes.y * y) * d,
+		M.origin + (-M.axes.z  + M.axes.x * x + M.axes.y * y) * d,
+		M.origin + (-M.axes.z + M.axes.x * x - M.axes.y * y) * d,
+	};
+	glBegin(GL_LINES);
+		for(int i=0; i<4; i++){
+			glVertex(M.origin); glVertex(v[i]);
+			glVertex(v[i]); glVertex(v[(i+1)%4]);
+		}
+	glEnd();
+}
+
+Frus calcFrus(const Matrix& M, float aspect, float fov)
+{
+	float x = tanf(fov/2);
+	float y = x / aspect;
+	Vector v[4] = {
+		M.origin - M.axes.z - M.axes.y * y - M.axes.x * x,
+		M.origin - M.axes.z + M.axes.y * y - M.axes.x * x,
+		M.origin - M.axes.z + M.axes.y * y + M.axes.x * x,
+		M.origin - M.axes.z - M.axes.y * y + M.axes.x * x,
+	};
+	Frus f;
+	f.p[0] = Plane(-M.axes.z, dot(-M.axes.z, M.origin));
+	for(int i=0; i<4; i++){
+		f.p[i+1] = planeFromPoints(v[i], v[(i+1)%4], M.origin);
+	}
+	return f;
+}
+
+void RenderWorld(const Matrix& cameraMatrix, float aspect, float fov)
+{
+	Matrix G = cameraMatrix;// makeGroundMatrix(cameraMatrix);
+	Frus f = calcFrus(G, aspect, fov);
+	
+	processPatchDetail(rootMapPatch, G.origin);
 	
 	float fogColor[] = {.8f, .8f, 1.f, 1.f};
 	glEnable(GL_FOG);
 	glFogfv(GL_FOG_COLOR, fogColor);
 	glFogi(GL_FOG_MODE, GL_EXP2);
 	glFogf(GL_FOG_DENSITY, .00003f);
-	glShadeModel(GL_FLAT);
-	drawPatchRecur(rootMapPatch, frustum);
-	{
+	glShadeModel(GL_SMOOTH);
+	drawPatchRecur(rootMapPatch, f);
+	if(1){
 		// Cumulus clouds
 		glEnable(GL_BLEND);
 		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -448,6 +507,9 @@ void RenderWorld(const Vector& viewer, const Frustum& frustum)
 			glVertex3f(CloudsMax.x, CloudsMin.y, CloudsMin.z);
 		glEnd();
 	}
+	glDisable(GL_BLEND);
+	glColor3f(1,1,1);
+	drawFrustumForMatrix(G, aspect, fov);
 }
 
 void RenderWorldGUI()

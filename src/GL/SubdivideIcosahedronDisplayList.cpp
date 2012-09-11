@@ -60,8 +60,10 @@ void emitStrip(Vector v[6], float s1, float s2, float dt, int count, int depth)
 				v1 /= length(v1);
 				v2 /= length(v2);
 				glNormal(v1);
+				glTexCoord3f(v1.x, v1.y, v1.z);
 				glVertex(v1);
 				glNormal(v2);
+				glTexCoord3f(v2.x, v2.y, v2.z);
 				glVertex(v2);
 			}
 		glEnd();

@@ -77,6 +77,7 @@ PFNGLUNIFORM3FPROC glUniform3f = NULL;
 PFNGLUNIFORMMATRIX4FVPROC glUniformMatrix4fv = NULL;
 PFNGLUNIFORM1IPROC glUniform1i = NULL;
 PFNGLPROGRAMPARAMETERIPROC glProgramParameteri = NULL;
+PFNGLTEXIMAGE3DPROC glTexImage3D = NULL;
 #include <glGeneralCylinder.h>
 extern void glCrossPlanes(const Vector& P, float S);
 #include <args.h>
@@ -109,6 +110,8 @@ extern void RenderWorldGUI();
 extern bool WorldMouseMove(float x, float y);
 extern void WorldLeftMouseUp();
 extern void WorldKey(int k);
+
+#include <PerlinNoise.h>
 
 namespace gl
 {
@@ -204,6 +207,7 @@ struct GLExtResolver
 		gl::resolve(glUniformMatrix4fv, "glUniformMatrix4fv");
 		gl::resolve(glUniform1i, "glUniform1i");
 		gl::resolve(glProgramParameteri, "glProgramParameteri");
+		gl::resolve(glTexImage3D, "glTexImage3D");
     }
 };
 
@@ -257,6 +261,7 @@ struct Game
 	GLuint oneLightProgram;
 	GLuint oneLightSpecEnvProgram;
 	GLuint oneLightShadowProgram;
+	GLuint oneLightMoonProgram;
 	GLuint addShineProgram;
 	GLuint checkerProgram;
 	GLuint surfaceProgram;
@@ -267,6 +272,7 @@ struct Game
 	bool showEdges;
 	Vector pivot;
 	int snapGridSize;
+	GLuint moonTex;
     
 	Game(int width, int height, int mode)
         : mode(mode)
@@ -302,6 +308,7 @@ struct Game
 		glBindRenderbuffer(GL_RENDERBUFFER, 0);
 		oneLightProgram = createShaderProgram("glsl/OneLightVertexShader.glsl", "glsl/OneLightPixelShader.glsl", NULL);
 		oneLightSpecEnvProgram = createShaderProgram("glsl/OneLight_Spec_Env_VertexShader.glsl", "glsl/OneLight_Spec_Env_PixelShader.glsl", NULL);
+		oneLightMoonProgram = createShaderProgram("glsl/OneLightMoonVertexShader.glsl", "glsl/OneLightMoonPixelShader.glsl", NULL);
 		addShineProgram = createShaderProgram("glsl/AdditiveShinyVertexShader.glsl", "glsl/AdditiveShinyPixelShader.glsl", NULL);
 		checkerProgram = createShaderProgram("glsl/CheckerVertexShader.glsl", "glsl/CheckerPixelShader.glsl", NULL);
 		surfaceProgram = createShaderProgram(
@@ -313,6 +320,40 @@ struct Game
 				);
 		atmoDispList = createAtmosphereDisplayList();
 		CreateWorld();
+
+		
+		{
+			PerlinNoise per;
+			const int TexReso = 32;
+			float* texMap = new float[TexReso*TexReso*TexReso];
+			float minT=100, maxT=-100;
+			for(int z=0; z<TexReso; z++){
+				for(int y=0; y<TexReso; y++){
+					for(int x=0; x<TexReso; x++){
+						float f = float(rand()) / float(RAND_MAX);
+						float X = float(x)/float(TexReso), Y = float(y)/float(TexReso), Z = float(z)/float(TexReso);
+						float t = per(X*32, Y*32, Z*32) / 32 + per(X*15, Y*16, Z*16) / 16 + per(X*8, Y*8, Z*8) / 8 + per(X*4, Y*4, Z*4) / 4;
+						texMap[z*TexReso*TexReso+y*TexReso+x] = t;
+						if(t < minT) minT = t;
+						if(maxT < t) maxT = t;
+					}
+				}
+			}
+			for(int i=0; i<TexReso*TexReso*TexReso; i++){
+				texMap[i] = (texMap[i] - minT) / (maxT - minT);
+			}
+			glGenTextures(1, &moonTex);
+			glEnable(GL_TEXTURE_3D);
+			glBindTexture(GL_TEXTURE_3D, moonTex);
+			glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+			glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+			glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+			glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+			glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_R, GL_REPEAT);
+			glTexImage3D(GL_TEXTURE_3D, 0, GL_RGB, TexReso, TexReso, TexReso, 0, GL_LUMINANCE, GL_FLOAT, texMap);
+			glDisable(GL_TEXTURE_3D);
+			delete[] texMap;
+		}
     }
 	~Game()
     {
@@ -450,14 +491,18 @@ struct Game
 			glEnable(GL_CULL_FACE);
 			if(1){//moon
 				glCullFace(GL_BACK);
-				glUseProgram(oneLightProgram);
+				glEnable(GL_TEXTURE_3D);
+				glBindTexture(GL_TEXTURE_3D, moonTex);
+				glUseProgram(oneLightMoonProgram);
 				Vector vSunDir = cameraMatrix.axes.in(sunDir);
-				glUniform3f(glGetUniformLocation(oneLightProgram, "vLightDir"), vSunDir.x, vSunDir.y, vSunDir.z);
+				glUniform3f(glGetUniformLocation(oneLightMoonProgram, "vLightDir"), vSunDir.x, vSunDir.y, vSunDir.z);
+				glUniform1i(glGetUniformLocation(oneLightMoonProgram, "MoonTex"), 0);
 				glPushMatrix();
 				glTranslate(Vector(-10, 3, 7));
-					glColor3f(.1f,.3f,.3f);
+					glColor3f(.3f, .3f, .3f);
 					glCallList(subIcoDispList3);
 				glPopMatrix();
+				glDisable(GL_TEXTURE_3D);
 			}
 			if(1){//sun
 				glCullFace(GL_BACK);

@@ -100,8 +100,8 @@ struct Curve
 	}
 };
 
-const Vector MapMin(-15000, 0, -15000);
-const Vector MapMax(15000, 0, 15000);
+const Vector MapMin(-35000, 0, -35000);
+const Vector MapMax(35000, 0, 35000);
 
 const int MapReso = 100;
 Vector& get(Vector* map, int x, int z) {return map[z*MapReso+x];}
@@ -111,11 +111,13 @@ bool isCurveDirty = false;
 PerlinNoise mapNoise;
 MapPatch rootMapPatch;
 
-const Vector CloudsMin(-15000, 2000, -15000), CloudsMax(15000, 2000, 15000);
-const int CloudsReso = 500;
+const Vector CloudsMin(-25000, 2000, -25000), CloudsMax(25000, 2000, 25000);
+const int CloudsReso = 1000;
 float* cloudsMap = NULL;
 float& getCloudsPoint(int x, int z) {return cloudsMap[z * CloudsReso + x];}
 GLuint cloudsTexture = 0;
+
+GLuint atmoTexture = 0;
 
 //Vector testViewer(3333,0,1111);
 //Frustum testFrustum = transform(pyramidFrustum(640, 480, 300),matrixFromOriginAxisZ(testViewer, unit(Vector(0,0,2))));
@@ -283,7 +285,7 @@ void subdivPatch(MapPatch& patch)
 	}
 }
 
-const int PatchQueueSize = 150;
+const int PatchQueueSize = 250;
 MapPatch* patchQueue[PatchQueueSize];
 int queuePatchCount = 0;
 //TODO: patch queue critical section
@@ -389,7 +391,7 @@ void drawPatchRecur(MapPatch& patch, const Frustum& frustum)
 
 bool isViewerNearPatch(MapPatch& patch, const Vector& viewer)
 {
-	const float PatchSubdivRadius = (patch.boxMax.x - patch.boxMin.x) * 1.1f;
+	const float PatchSubdivRadius = (patch.boxMax.x - patch.boxMin.x) * 100.f / float(MapReso);
 	Vector p = nearestBoxPoint(patch.boxMin, patch.boxMax, viewer);
 	return square(viewer - p) < square(PatchSubdivRadius);
 }

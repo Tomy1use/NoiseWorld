@@ -155,8 +155,8 @@ float* createHeightMap(const Vector& BoxMin, const Vector& BoxMax, float& outMin
 				float Z = lerp(BoxMin.z, BoxMax.z, float(z)/float(MapReso-1));
 				h += mapNoise(X/periods[i], Z/periods[i]) * periods[i] * invTotalPeriod;
 			}
-			h = h * 1.2f + .5f;
-			h = mapCurve(h) * 1500;
+			h = h * 1.f + .5f;
+			h = mapCurve(h) * 2500;
 			get(height, x, z) = h;
 			if(h < minY) minY = h;
 			if(maxY < h) maxY = h;

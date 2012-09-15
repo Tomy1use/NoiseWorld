@@ -79,17 +79,17 @@ bool compileAndAttach(GLuint program, int shaderType, const char* srcFileName)
 	return false;
 }
 
-GLuint createShaderProgram(const char* vertexShaderFileName, const char* pixelShaderFileName, const char* geometryShaderFileName)
+GLuint createShader(const char* VertexShaderFileName, const char* PixelShaderFileName, const char* GeometryShaderFileName)
 {
 	GLuint program = glCreateProgram();
-	if(vertexShaderFileName){
-		compileAndAttach(program, GL_VERTEX_SHADER, vertexShaderFileName);
+	if(VertexShaderFileName){
+		compileAndAttach(program, GL_VERTEX_SHADER, VertexShaderFileName);
 	}
-	if(pixelShaderFileName){
-		compileAndAttach(program, GL_FRAGMENT_SHADER, pixelShaderFileName);
+	if(PixelShaderFileName){
+		compileAndAttach(program, GL_FRAGMENT_SHADER, PixelShaderFileName);
 	}
-	if(geometryShaderFileName){
-		if(compileAndAttach(program, GL_GEOMETRY_SHADER, geometryShaderFileName)){
+	if(GeometryShaderFileName){
+		if(compileAndAttach(program, GL_GEOMETRY_SHADER, GeometryShaderFileName)){
 			glProgramParameteri(program, GL_GEOMETRY_INPUT_TYPE_EXT, GL_TRIANGLES);
 			glProgramParameteri(program, GL_GEOMETRY_OUTPUT_TYPE_EXT, GL_TRIANGLES);
 			glProgramParameteri(program, GL_GEOMETRY_VERTICES_OUT_EXT, 6*6*3);

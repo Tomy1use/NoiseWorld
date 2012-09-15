@@ -61,7 +61,7 @@ void glSphereQuarter(const Vector& K, const Vector& A, const Vector& B, const Ve
 #include <FileEnvironment.h>
 #include <IcosahedronRenderPiece.h>
 extern void makeScreenshot(HWND window, const char* fileName);
-extern GLuint createShaderProgram(const char* vertexShaderFileName, const char* pixelShaderFileName, const char* geometryShaderFileName);
+extern GLuint createShader(const char* VertexShaderFileName, const char* PixelShaderFileName, const char* GeometryShaderFileName);
 extern GLuint subdivideIcosahedronDisplayList(int depth);
 extern int createAtmosphereDisplayList();
 extern void centerWindow(HWND window, int width, int height);
@@ -185,12 +185,12 @@ struct Game
         ShowWindow(view.window, SW_NORMAL);
         printf("OpenGL version %s\n", glGetString(GL_VERSION));
 		glBindRenderbuffer(GL_RENDERBUFFER, 0);
-		oneLightProgram = createShaderProgram("glsl/OneLightVertexShader.glsl", "glsl/OneLightPixelShader.glsl", NULL);
-		oneLightSpecEnvProgram = createShaderProgram("glsl/OneLight_Spec_Env_VertexShader.glsl", "glsl/OneLight_Spec_Env_PixelShader.glsl", NULL);
-		oneLightMoonProgram = createShaderProgram("glsl/OneLightMoonVertexShader.glsl", "glsl/OneLightMoonPixelShader.glsl", NULL);
-		addShineProgram = createShaderProgram("glsl/AdditiveShinyVertexShader.glsl", "glsl/AdditiveShinyPixelShader.glsl", NULL);
-		checkerProgram = createShaderProgram("glsl/CheckerVertexShader.glsl", "glsl/CheckerPixelShader.glsl", NULL);
-		surfaceProgram = createShaderProgram(
+		oneLightProgram = createShader("glsl/OneLightVertexShader.glsl", "glsl/OneLightPixelShader.glsl", NULL);
+		oneLightSpecEnvProgram = createShader("glsl/OneLight_Spec_Env_VertexShader.glsl", "glsl/OneLight_Spec_Env_PixelShader.glsl", NULL);
+		oneLightMoonProgram = createShader("glsl/OneLightMoonVertexShader.glsl", "glsl/OneLightMoonPixelShader.glsl", NULL);
+		addShineProgram = createShader("glsl/AdditiveShinyVertexShader.glsl", "glsl/AdditiveShinyPixelShader.glsl", NULL);
+		checkerProgram = createShader("glsl/CheckerVertexShader.glsl", "glsl/CheckerPixelShader.glsl", NULL);
+		surfaceProgram = createShader(
 				//"glsl/OneLight_Spec_Env_VertexShader.glsl", "glsl/OneLight_Spec_Env_PixelShader.glsl", 
 				"glsl/MinimalVertexShader.glsl", "glsl/MinimalPixelShader.glsl",
 				//NULL, NULL,

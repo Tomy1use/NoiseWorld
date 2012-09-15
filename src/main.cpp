@@ -134,7 +134,6 @@ struct Game
 	GLuint oneLightMoonProgram;
 	GLuint addShineProgram;
 	GLuint checkerProgram;
-	GLuint surfaceProgram;
 	GLuint subIcoDispList0;
 	GLuint subIcoDispList1;
 	GLuint subIcoDispList2;
@@ -176,22 +175,14 @@ struct Game
         ShowWindow(view.window, SW_NORMAL);
         printf("OpenGL version %s\n", glGetString(GL_VERSION));
 		glBindRenderbuffer(GL_RENDERBUFFER, 0);
-		oneLightProgram = createShader("glsl/OneLightVertexShader.glsl", "glsl/OneLightPixelShader.glsl", NULL);
-		oneLightSpecEnvProgram = createShader("glsl/OneLight_Spec_Env_VertexShader.glsl", "glsl/OneLight_Spec_Env_PixelShader.glsl", NULL);
-		oneLightMoonProgram = createShader("glsl/OneLightMoonVertexShader.glsl", "glsl/OneLightMoonPixelShader.glsl", NULL);
-		addShineProgram = createShader("glsl/AdditiveShinyVertexShader.glsl", "glsl/AdditiveShinyPixelShader.glsl", NULL);
-		checkerProgram = createShader("glsl/CheckerVertexShader.glsl", "glsl/CheckerPixelShader.glsl", NULL);
-		surfaceProgram = createShader(
-				//"glsl/OneLight_Spec_Env_VertexShader.glsl", "glsl/OneLight_Spec_Env_PixelShader.glsl", 
-				"glsl/MinimalVertexShader.glsl", "glsl/MinimalPixelShader.glsl",
-				//NULL, NULL,
-				"glsl/GeometryShader.glsl"
-				//NULL
-				);
-		surfaceShader = createShader("glsl/SurfaceVertexShader.glsl", "glsl/SurfacePixelShader.glsl", NULL);
+		//oneLightProgram = createShader("Shaders/OneLightVertexShader.glsl", "Shaders/OneLightPixelShader.glsl", NULL);
+		//oneLightSpecEnvProgram = createShader("Shaders/OneLight_Spec_Env_VertexShader.glsl", "Shaders/OneLight_Spec_Env_PixelShader.glsl", NULL);
+		oneLightMoonProgram = createShader("Shaders/OneLightMoonVertexShader.glsl", "Shaders/OneLightMoonPixelShader.glsl", NULL);
+		addShineProgram = createShader("Shaders/AdditiveShinyVertexShader.glsl", "Shaders/AdditiveShinyPixelShader.glsl", NULL);
+		//checkerProgram = createShader("Shaders/CheckerVertexShader.glsl", "Shaders/CheckerPixelShader.glsl", NULL);
+		surfaceShader = createShader("Shaders/SurfaceVertexShader.glsl", "Shaders/SurfacePixelShader.glsl", NULL);
 		atmoDispList = createAtmosphereDisplayList();
 		CreateWorld();
-
 		
 		{
 			PerlinNoise per;

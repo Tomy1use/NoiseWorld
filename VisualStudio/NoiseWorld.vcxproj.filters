@@ -90,6 +90,9 @@
     <ClCompile Include="..\src\AtmosphereDisplayList.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\GL\ExtensionFunctions.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\src\FloatToString\PowerOfTwoStrings.h">

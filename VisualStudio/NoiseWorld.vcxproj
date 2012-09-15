@@ -71,6 +71,7 @@
     <ClCompile Include="..\src\AtmosphereDisplayList.cpp" />
     <ClCompile Include="..\src\error.cpp" />
     <ClCompile Include="..\src\FloatToString\FloatToString.cpp" />
+    <ClCompile Include="..\src\GL\ExtensionFunctions.cpp" />
     <ClCompile Include="..\src\GL\glCrossPlanes.cpp" />
     <ClCompile Include="..\src\GL\glFastBox.cpp" />
     <ClCompile Include="..\src\GL\glSphereQuarter.cpp" />

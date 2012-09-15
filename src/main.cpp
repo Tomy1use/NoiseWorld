@@ -35,49 +35,11 @@
 #include <WriteGif.h>
 #include <Math/RandomNumber.h>
 #include <GL/RenderContext.h>
-#include <GL/Resolve.h>
 #include <gl/gl.h>
-#include <gl/glext.h>
-#include <gl/Resolve.h>
 #include <glFunc.h>
 #include <Strip.h>
 #include <DataFile.h>
-PFNGLBEGINOCCLUSIONQUERYNVPROC glBeginOcclusionQuery = NULL;
-PFNGLENDOCCLUSIONQUERYNVPROC glEndOcclusionQuery = NULL;
-PFNGLGETOCCLUSIONQUERYIVNVPROC glGetOcclusionQueryiv = NULL;
-PFNGLGENOCCLUSIONQUERIESNVPROC glGenOcclusionQueries = NULL;
-PFNGLDELETEOCCLUSIONQUERIESNVPROC glDeleteOcclusionQueries = NULL;
-PFNGLGENBUFFERSARBPROC glGenBuffers = NULL;
-PFNGLBINDBUFFERARBPROC glBindBuffer = NULL;
-PFNGLBUFFERDATAARBPROC glBufferData = NULL;
-PFNGLACTIVETEXTUREPROC glActiveTexture = NULL;
-PFNGLGENRENDERBUFFERSEXTPROC glGenRenderbuffers = NULL;
-PFNGLDELETERENDERBUFFERSEXTPROC glDeleteRenderbuffers = NULL;
-PFNGLBINDRENDERBUFFEREXTPROC glBindRenderbuffer = NULL;
-PFNGLGENFRAMEBUFFERSEXTPROC glGenFramebuffers = NULL;
-PFNGLRENDERBUFFERSTORAGEEXTPROC glRenderbufferStorage = NULL;
-PFNGLDELETEFRAMEBUFFERSEXTPROC glDeleteFramebuffers = NULL;
-PFNGLBINDFRAMEBUFFEREXTPROC glBindFramebuffer = NULL;
-PFNGLFRAMEBUFFERTEXTURE2DPROC glFramebufferTexture2D = NULL;
-PFNGLCHECKFRAMEBUFFERSTATUSEXTPROC glCheckFramebufferStatus = NULL;
-PFNGLFRAMEBUFFERRENDERBUFFEREXTPROC glFramebufferRenderbuffer = NULL;
-PFNGLCOMPILESHADERPROC glCompileShader = NULL;
-PFNGLGETSHADERIVPROC glGetShaderiv = NULL;
-PFNGLGETSHADERINFOLOGPROC glGetShaderInfoLog = NULL;
-PFNGLGETPROGRAMIVPROC glGetProgramiv = NULL;
-PFNGLGETPROGRAMINFOLOGPROC glGetProgramInfoLog = NULL;
-PFNGLCREATEPROGRAMPROC glCreateProgram = NULL;
-PFNGLCREATESHADERPROC glCreateShader = NULL;
-PFNGLSHADERSOURCEPROC glShaderSource = NULL;
-PFNGLATTACHSHADERPROC glAttachShader = NULL;
-PFNGLLINKPROGRAMPROC glLinkProgram = NULL;
-PFNGLUSEPROGRAMPROC glUseProgram = NULL;
-PFNGLGETUNIFORMLOCATIONPROC glGetUniformLocation = NULL;
-PFNGLUNIFORM3FPROC glUniform3f = NULL;
-PFNGLUNIFORMMATRIX4FVPROC glUniformMatrix4fv = NULL;
-PFNGLUNIFORM1IPROC glUniform1i = NULL;
-PFNGLPROGRAMPARAMETERIPROC glProgramParameteri = NULL;
-PFNGLTEXIMAGE3DPROC glTexImage3D = NULL;
+#include <GL/ExtensionFunctions.h>
 #include <glGeneralCylinder.h>
 extern void glCrossPlanes(const Vector& P, float S);
 #include <args.h>
@@ -113,103 +75,22 @@ extern void WorldKey(int k);
 
 #include <PerlinNoise.h>
 
-namespace gl
-{
-    struct RenderBuffer
-    {
-        GLuint name;
-        RenderBuffer() {glGenRenderbuffers(1, &name);}
-        ~RenderBuffer() {glDeleteRenderbuffers(1, &name);}
-        operator GLuint() const {return name;}
-    };
-    
-    void bind(const RenderBuffer& rb) {glBindRenderbuffer(GL_RENDERBUFFER, rb);}
-    
-    struct FrameBuffer
-    {
-        GLuint name;
-        FrameBuffer() {glGenFramebuffers(1, &name);
-            printf("FrameBuffer: %d\n", name);}
-        ~FrameBuffer() {glDeleteFramebuffers(1, &name);}
-        operator GLuint() const {return name;}
-    };
-    
-    void bind(const FrameBuffer& fb) {
-        glBindFramebuffer(GL_FRAMEBUFFER, fb);
-        //printf("glBindFramebuffer: %x\n", glGetError());
-    }
-	
-	struct Shader
-	{
-	};
-}
-
 static const float HumanSpeed = 1.2f;
 static const float CarSpeed = 16.f;
 static const float JetSpeed = 100;
 
-template<class Foo>
-void shuffle(Foo items[], int count, int seed=235209)
+
+void setShaderVector(int program, const char* param, const Vector& v)
 {
-    RandomNumber r(seed);
-    for(int i=0; i<count; i++){
-        int j = (r++)(0, count);
-        Foo x = items[i];
-        items[i] = items[j];
-        items[j] = x;
-    }
+	int location = glGetUniformLocation(program, param);
+	glUniform3f(location, v.x, v.y, v.z);
 }
 
-
-enum
+void setShaderTexture(int program, const char* param, int t)
 {
-    GameMode,
-    WriteGifAndExit,
-    ModeCount
-};
-
-struct GLExtResolver
-{
-    GLExtResolver()
-    {
-        gl::resolve(glBeginOcclusionQuery, "glBeginOcclusionQueryNV");
-        gl::resolve(glEndOcclusionQuery, "glEndOcclusionQueryNV");
-        gl::resolve(glGetOcclusionQueryiv, "glGetOcclusionQueryivNV");
-        gl::resolve(glGenOcclusionQueries, "glGenOcclusionQueriesNV");
-        gl::resolve(glDeleteOcclusionQueries, "glDeleteOcclusionQueriesNV");
-		gl::resolve(glGenBuffers, "glGenBuffersARB");
-		gl::resolve(glBindBuffer, "glBindBufferARB");
-		gl::resolve(glBufferData, "glBufferDataARB");
-		gl::resolve(glActiveTexture, "glActiveTexture");
-        gl::resolve(glGenRenderbuffers, "glGenRenderbuffersEXT");
-        gl::resolve(glDeleteRenderbuffers, "glDeleteRenderbuffersEXT");
-        gl::resolve(glBindRenderbuffer, "glBindRenderbufferEXT");
-        gl::resolve(glRenderbufferStorage, "glRenderbufferStorageEXT");
-        gl::resolve(glGenFramebuffers, "glGenFramebuffersEXT");
-        gl::resolve(glDeleteFramebuffers, "glDeleteFramebuffersEXT");
-        gl::resolve(glBindFramebuffer, "glBindFramebufferEXT");
-        gl::resolve(glFramebufferTexture2D, "glFramebufferTexture2D");
-        gl::resolve(glCheckFramebufferStatus, "glCheckFramebufferStatus");
-        gl::resolve(glFramebufferRenderbuffer, "glFramebufferRenderbufferEXT");
-		gl::resolve(glCompileShader, "glCompileShader");
-		gl::resolve(glGetShaderiv, "glGetShaderiv");
-		gl::resolve(glGetShaderInfoLog, "glGetShaderInfoLog");
-		gl::resolve(glGetProgramiv, "glGetProgramiv");
-		gl::resolve(glGetProgramInfoLog, "glGetProgramInfoLog");
-		gl::resolve(glCreateProgram, "glCreateProgram");
-		gl::resolve(glCreateShader, "glCreateShader");
-		gl::resolve(glShaderSource, "glShaderSource");
-		gl::resolve(glAttachShader, "glAttachShader");
-		gl::resolve(glLinkProgram, "glLinkProgram");
-		gl::resolve(glUseProgram, "glUseProgram");
-		gl::resolve(glGetUniformLocation, "glGetUniformLocation");
-		gl::resolve(glUniform3f, "glUniform3f");
-		gl::resolve(glUniformMatrix4fv, "glUniformMatrix4fv");
-		gl::resolve(glUniform1i, "glUniform1i");
-		gl::resolve(glProgramParameteri, "glProgramParameteri");
-		gl::resolve(glTexImage3D, "glTexImage3D");
-    }
-};
+	int location = glGetUniformLocation(program, param);
+	glUniform1i(location, t);
+}
 
 struct View
 {
@@ -237,13 +118,11 @@ struct View
 
 struct Game
 {
-    int mode;
 	AboutBox aboutBox;
 	MenuConf menuConf;
 	MenuExec menuExec;
 	FileEnvironment fileEnv;
 	View view;
-    GLExtResolver glextresolver;
     HFONT font;
     Text textMsec;
     Text textCursor;
@@ -274,9 +153,8 @@ struct Game
 	int snapGridSize;
 	GLuint moonTex;
     
-	Game(int width, int height, int mode)
-        : mode(mode)
-		, aboutBox("about.txt")
+	Game(int width, int height)
+		: aboutBox("about.txt")
 		, menuConf("menu.conf")
 		, menuExec(&menuConf)
 		, fileEnv("recent.txt")
@@ -299,6 +177,7 @@ struct Game
 		, pivot(ZeroVector)
 		, snapGridSize(128)
     {
+		resolveExtensionFunctions();
         textMsec.setFont("Arial", 15);
         textMsec.setPoint(0, 0);
         textCursor.setFont("Arial", 13);
@@ -494,9 +373,8 @@ struct Game
 				glEnable(GL_TEXTURE_3D);
 				glBindTexture(GL_TEXTURE_3D, moonTex);
 				glUseProgram(oneLightMoonProgram);
-				Vector vSunDir = cameraMatrix.axes.in(sunDir);
-				glUniform3f(glGetUniformLocation(oneLightMoonProgram, "vLightDir"), vSunDir.x, vSunDir.y, vSunDir.z);
-				glUniform1i(glGetUniformLocation(oneLightMoonProgram, "MoonTex"), 0);
+				setShaderVector(oneLightMoonProgram, "vLightDir", cameraMatrix.axes.in(sunDir));
+				setShaderTexture(oneLightMoonProgram, "MoonTex", 0);
 				glPushMatrix();
 				glTranslate(Vector(-10, 3, 7));
 					glColor3f(.3f, .3f, .3f);
@@ -634,7 +512,6 @@ struct Game
     }
     bool isDone()
     {
-        if(mode == WriteGifAndExit) return true;
         if(! IsWindow(view.window)) return true;
         return false;
     }
@@ -657,8 +534,7 @@ int main(int argc, char* argv[])
         w = atoi(argv[1]);
         h = atoi(argv[2]);
     }
-    int mode = args.has("gif") ? WriteGifAndExit : GameMode;
-    Game game(w, h, mode);
+    Game game(w, h);
 	
 	float oldTime = 0;
 	float curTime = 0;

@@ -76,6 +76,7 @@
     <ClCompile Include="..\src\GL\glFastBox.cpp" />
     <ClCompile Include="..\src\GL\glSphereQuarter.cpp" />
     <ClCompile Include="..\src\GL\glTexBox.cpp" />
+    <ClCompile Include="..\src\GL\ShaderFunctions.cpp" />
     <ClCompile Include="..\src\GL\ShaderProgram.cpp" />
     <ClCompile Include="..\src\GL\SubdivideIcosahedronDisplayList.cpp" />
     <ClCompile Include="..\src\input.cpp" />

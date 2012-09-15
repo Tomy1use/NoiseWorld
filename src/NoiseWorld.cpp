@@ -1,7 +1,8 @@
 #define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
 #include <GL/GL.h>
-#include <GL/glext.h>
+#include <GL/ExtensionFunctions.h>
+#include <GL/ShaderFunctions.h>
 #include <glFunc.h>
 #include <Math/Vector.h>
 #include <Math/VectorConst.h>
@@ -51,16 +52,14 @@ void putPatchInQueue(MapPatch* patch);
 struct MapPatch
 {
 	Vector color;
-	Vector* verts;
-	Vector* norms;
-	float* shade;
+	float* height;
 	Vector boxMin, boxMax;
 	MapPatch* children;
-	int dispList;
+	GLuint heightTexture;
 	bool arraysReady;
 	bool dispListReady;
 	MapPatch() {
-		ZeroMemory(this, sizeof(MapPatch));\
+		ZeroMemory(this, sizeof(MapPatch));
 		static int i = 0;
 		
 		i += 151251251;
@@ -122,6 +121,8 @@ Curve mapCurve;
 bool isCurveDirty = false;
 PerlinNoise mapNoise;
 MapPatch rootMapPatch;
+extern GLuint surfaceShader;
+int patchDispList = 0;
 
 const Vector CloudsMin(-25000, 2000, -25000), CloudsMax(25000, 2000, 25000);
 const int CloudsReso = 1000;
@@ -129,36 +130,9 @@ float* cloudsMap = NULL;
 float& getCloudsPoint(int x, int z) {return cloudsMap[z * CloudsReso + x];}
 GLuint cloudsTexture = 0;
 
-Vector* calcMapNormals(Vector* verts)
+float* createHeightMap(const Vector& BoxMin, const Vector& BoxMax, float& outMinY, float& outMaxY)
 {
-	Vector* norms = new Vector[MapReso*MapReso];
-	for(int z=0; z<MapReso; z++){
-		for(int x=0; x<MapReso; x++){
-			Vector x1 = x > 0 ? get(verts, x-1, z) : get(verts, x, z);
-			Vector x2 = x < MapReso-1 ? get(verts, x+1, z) : get(verts, x, z);
-			Vector z1 = z > 0 ? get(verts, x, z-1) : get(verts, x, z);
-			Vector z2 = z < MapReso-1 ? get(verts, x, z+1) : get(verts, x, z);
-			get(norms, x, z) = unit(cross(z2-z1, x2-x1));
-		}
-	}
-	return norms;
-}
-
-float* calcMapShade(Vector* norms)
-{
-	const Vector light = unit(Vector(1, 3, 2));
-	float* shade = new float[MapReso*MapReso];
-	for(int z=0; z<MapReso; z++){
-		for(int x=0; x<MapReso; x++){
-			get(shade, x, z) = dot(get(norms, x, z), light);
-		}
-	}
-	return shade;
-}
-
-Vector* createHeightMap(const Vector& BoxMin, const Vector& BoxMax, float& outMinY, float& outMaxY)
-{
-	Vector* verts = new Vector[MapReso*MapReso];
+	float* height = new float[MapReso*MapReso];
 	const float periods[] = {
 		5, 15, 35, 75, 
 		155, 
@@ -175,22 +149,25 @@ Vector* createHeightMap(const Vector& BoxMin, const Vector& BoxMax, float& outMi
 	float minY = 1000000, maxY = -1000000;
 	for(int z=0; z<MapReso; z++){
 		for(int x=0; x<MapReso; x++){
-			Vector& v = get(verts, x, z);
-			v.x = lerp(BoxMin.x, BoxMax.x, float(x)/float(MapReso-1));
-			v.z = lerp(BoxMin.z, BoxMax.z, float(z)/float(MapReso-1));
 			float h = 0;
 			for(int i=0; i<periodCount; i++){
-				h += mapNoise(v.x/periods[i], v.z/periods[i]) * periods[i] * invTotalPeriod;
+				float X = lerp(BoxMin.x, BoxMax.x, float(x)/float(MapReso-1));
+				float Z = lerp(BoxMin.z, BoxMax.z, float(z)/float(MapReso-1));
+				h += mapNoise(X/periods[i], Z/periods[i]) * periods[i] * invTotalPeriod;
 			}
 			h = h * 1.2f + .5f;
-			v.y = mapCurve(h) * 1500;
-			if(v.y < minY) minY = v.y;
-			if(maxY < v.y) maxY = v.y;
+			h = mapCurve(h) * 1500;
+			get(height, x, z) = h;
+			if(h < minY) minY = h;
+			if(maxY < h) maxY = h;
 		}
+	}
+	for(int i=0; i<MapReso*MapReso; i++){
+		height[i] = (height[i] - minY) / (maxY - minY);
 	}
 	outMinY = minY;
 	outMaxY = maxY;
-	return verts;
+	return height;
 }
 
 void createCloudsMap()
@@ -223,7 +200,6 @@ void createCloudsMap()
 void createCloudsTexture()
 {
 	glGenTextures(1, &cloudsTexture);
-	glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
     glBindTexture(GL_TEXTURE_2D, cloudsTexture);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -232,33 +208,37 @@ void createCloudsTexture()
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_ALPHA, CloudsReso, CloudsReso, 0, GL_ALPHA, GL_FLOAT, cloudsMap);
 }
 
-void createPatchDisplayList(MapPatch& patch)
+void createPatchDisplayList()
 {
-	patch.dispList = glGenLists(1);
-	glNewList(patch.dispList, GL_COMPILE);
+	patchDispList = glGenLists(1);
+	glNewList(patchDispList, GL_COMPILE);
+		glColor3f(.5f,.5f,.5f);
 		for(int z=0; z<MapReso-1; z++){
 			glBegin(GL_QUAD_STRIP);
 				for(int x=0; x<MapReso; x++){
-					float s1 = get(patch.shade, x, z), s2 = get(patch.shade, x, z+1);
-					Vector v1 = get(patch.verts, x, z), v2 = get(patch.verts, x, z+1);
-					Vector grassColor(0,.5f,0), rockColor(.5f,.5f,.5f), snowColor(1.f,1.f,1.f);
-					//glColor(patch.color * s1);
-					glColor((v1.y < 190 ? grassColor : v1.y < 1100 ? rockColor : snowColor)*s1);
-					glVertex(v1);
-					//glColor(patch.color * s2);
-					glColor((v2.y < 190 ? grassColor : v2.y < 1100 ? rockColor : snowColor)*s2);
-					glVertex(v2);
+					float X = float(x)/float(MapReso-1);
+					glVertex3f(X, 0, float(z)/float(MapReso-1));
+					glVertex3f(X, 0, float(z+1)/float(MapReso-1));
 				}
 			glEnd();
 		}
 	glEndList();
 }
 
+void createPatchDisplayList(MapPatch& patch)
+{
+	glGenTextures(1, &patch.heightTexture);
+	glBindTexture(GL_TEXTURE_2D, patch.heightTexture);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_LUMINANCE, MapReso, MapReso, 0, GL_LUMINANCE, GL_FLOAT, patch.height);
+}
+
 void createPatchArrays(MapPatch& patch)
 {
-	patch.verts = createHeightMap(patch.boxMin, patch.boxMax, patch.boxMin.y, patch.boxMax.y);
-	patch.norms = calcMapNormals(patch.verts);
-	patch.shade = calcMapShade(patch.norms);
+	patch.height = createHeightMap(patch.boxMin, patch.boxMax, patch.boxMin.y, patch.boxMax.y);
 }
 
 void initRootMapPatch(MapPatch& patch, const Vector& BoxMin, const Vector& BoxMax)
@@ -275,11 +255,9 @@ void deletePatchChildren(MapPatch& patch)
 		for(int i=0; i<4; i++){
 			deletePatchChildren(patch.children[i]);
 			if(patch.children[i].dispListReady){
-				glDeleteLists(patch.children[i].dispList, 1);
+				//glDeleteTextures(1, &patch.heightTexture);
 			}
-			delete[] patch.children[i].shade;
-			delete[] patch.children[i].norms;
-			delete[] patch.children[i].verts;
+			delete[] patch.children[i].height;
 		}
 		delete[] patch.children;
 		patch.children = NULL;
@@ -309,7 +287,7 @@ void putPatchInQueue(MapPatch* patch)
 	EnterCriticalSection(&queueCritSect);
 		if(queuePatchCount < PatchQueueSize){
 			patchQueue[queuePatchCount++] = patch;
-			printf("%d\n", queuePatchCount);
+			//printf("%d\n", queuePatchCount);
 		}else{
 			printf("Patch queue overflow\n");
 		}
@@ -323,7 +301,7 @@ void shiftPatchQueue()
 			patchQueue[i] = patchQueue[i+1];
 		}
 		queuePatchCount--;
-		printf("%d\n", queuePatchCount);
+		//printf("%d\n", queuePatchCount);
 	LeaveCriticalSection(&queueCritSect);
 }
 
@@ -345,6 +323,7 @@ void CreateWorld()
 	createCloudsMap();
 	createCloudsTexture();
 	initRootMapPatch(rootMapPatch, MapMin, MapMax);
+	createPatchDisplayList();
 	InitializeCriticalSection(&queueCritSect);
 	CreateThread(NULL, 0, LPTHREAD_START_ROUTINE(patchQueueThreadProc), NULL, 0, NULL);
 }
@@ -392,13 +371,19 @@ void drawPatchRecur(MapPatch& patch, const Frus& frus)
 			drawPatchRecur(patch.children[i], frus);
 		}
 	}else{
-		glCallList(patch.dispList);
+		glEnable(GL_TEXTURE_2D);
+		glBindTexture(GL_TEXTURE_2D, patch.heightTexture);
+		setShaderVector(surfaceShader, "boxMin", patch.boxMin);
+		setShaderVector(surfaceShader, "boxMax", patch.boxMax);
+		setShaderTexture(surfaceShader, "heightMap", 0);
+		//glCallList(patch.dispList);
+		glCallList(patchDispList);
 	}
 }
 
 bool isViewerNearPatch(MapPatch& patch, const Vector& viewer)
 {
-	const float PatchSubdivRadius = (patch.boxMax.x - patch.boxMin.x) * 100.f / float(MapReso);
+	const float PatchSubdivRadius = (patch.boxMax.x - patch.boxMin.x) * 100.f / float(MapReso-1);
 	Vector p = nearestBoxPoint(patch.boxMin, patch.boxMax, viewer);
 	return square(viewer - p) < square(PatchSubdivRadius);
 }
@@ -499,7 +484,7 @@ void drawCumulusClouds()
 	glEnd();
 }
 
-void RenderWorld(const Matrix& cameraMatrix, float aspect, float fov)
+void RenderWorld(const Matrix& cameraMatrix, float aspect, float fov, const Vector& vLightDir)
 {
 	Matrix G = cameraMatrix;// makeGroundMatrix(cameraMatrix);
 	Frus f = calcFrus(G, aspect, fov);
@@ -511,8 +496,14 @@ void RenderWorld(const Matrix& cameraMatrix, float aspect, float fov)
 	glFogfv(GL_FOG_COLOR, fogColor);
 	glFogi(GL_FOG_MODE, GL_EXP2);
 	glFogf(GL_FOG_DENSITY, .00003f);
-	glShadeModel(GL_SMOOTH);
+	glShadeModel(GL_FLAT);
+	
+	
+	glUseProgram(surfaceShader);
+	setShaderVector(surfaceShader, "vLightDir", vLightDir);
 	drawPatchRecur(rootMapPatch, f);
+	
+	glUseProgram(0);
 	drawCumulusClouds();
 	glDisable(GL_BLEND);
 	glColor3f(1,1,1);

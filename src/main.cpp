@@ -60,6 +60,7 @@ void glSphereQuarter(const Vector& K, const Vector& A, const Vector& B, const Ve
 #include <AboutBox.h>
 #include <FileEnvironment.h>
 #include <IcosahedronRenderPiece.h>
+#include <GL/ShaderFunctions.h>
 extern void makeScreenshot(HWND window, const char* fileName);
 extern GLuint createShader(const char* VertexShaderFileName, const char* PixelShaderFileName, const char* GeometryShaderFileName);
 extern GLuint subdivideIcosahedronDisplayList(int depth);
@@ -67,7 +68,7 @@ extern int createAtmosphereDisplayList();
 extern void centerWindow(HWND window, int width, int height);
 
 extern void CreateWorld();
-extern void RenderWorld(const Matrix& cameraMatrix, float aspect, float fov);
+extern void RenderWorld(const Matrix& cameraMatrix, float aspect, float fov, const Vector& vLightDir);
 extern void RenderWorldGUI();
 extern bool WorldMouseMove(float x, float y);
 extern void WorldLeftMouseUp();
@@ -79,18 +80,6 @@ static const float HumanSpeed = 1.2f;
 static const float CarSpeed = 16.f;
 static const float JetSpeed = 100;
 
-
-void setShaderVector(int program, const char* param, const Vector& v)
-{
-	int location = glGetUniformLocation(program, param);
-	glUniform3f(location, v.x, v.y, v.z);
-}
-
-void setShaderTexture(int program, const char* param, int t)
-{
-	int location = glGetUniformLocation(program, param);
-	glUniform1i(location, t);
-}
 
 struct View
 {
@@ -115,6 +104,8 @@ struct View
 			GetDesktopWindow(), NULL, c.hInstance, NULL);
 	}
 };
+
+GLuint surfaceShader = 0;
 
 struct Game
 {
@@ -197,6 +188,7 @@ struct Game
 				"glsl/GeometryShader.glsl"
 				//NULL
 				);
+		surfaceShader = createShader("glsl/SurfaceVertexShader.glsl", "glsl/SurfacePixelShader.glsl", NULL);
 		atmoDispList = createAtmosphereDisplayList();
 		CreateWorld();
 
@@ -419,7 +411,7 @@ struct Game
 		glDisable(GL_BLEND);
 		glEnable(GL_TEXTURE_2D);
 		glActiveTexture(GL_TEXTURE0);
-		RenderWorld(cameraMatrix, float(clientRect.right)/float(clientRect.bottom), fov);
+		RenderWorld(cameraMatrix, float(clientRect.right)/float(clientRect.bottom), fov, cameraMatrix.axes.in(sunDir));
 		glDisable(GL_TEXTURE_2D);
 
 		{

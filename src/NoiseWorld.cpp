@@ -121,7 +121,7 @@ Curve mapCurve;
 bool isCurveDirty = false;
 PerlinNoise mapNoise;
 MapPatch rootMapPatch;
-extern GLuint surfaceShader;
+GLuint surfaceShader = 0;
 int patchDispList = 0;
 
 const Vector CloudsMin(-25000, 2000, -25000), CloudsMax(25000, 2000, 25000);
@@ -129,6 +129,7 @@ const int CloudsReso = 1000;
 float* cloudsMap = NULL;
 float& getCloudsPoint(int x, int z) {return cloudsMap[z * CloudsReso + x];}
 GLuint cloudsTexture = 0;
+GLuint cloudsShader = 0;
 
 float* createHeightMap(const Vector& BoxMin, const Vector& BoxMax, float& outMinY, float& outMaxY)
 {
@@ -174,11 +175,13 @@ void createCloudsMap()
 {
 	if(! cloudsMap) cloudsMap = new float[CloudsReso*CloudsReso];
 	const float periods[] = {
-		5, 15, 35, 75, 
+		//5, 15, 35, 
+		75, 
 		155, 
 		355,
 		573,
 		1021,
+		2555,
 	};
 	const int periodCount = sizeof(periods) / sizeof(periods[0]);
 	float totalPeriod = 0;
@@ -192,7 +195,7 @@ void createCloudsMap()
 			for(int i=0; i<periodCount; i++){
 				h += mapNoise(Px/periods[i], Pz/periods[i]) * periods[i] * invTotalPeriod;
 			}
-			getCloudsPoint(x, z) = h * 2;
+			getCloudsPoint(x, z) = h * 3;
 		}
 	}
 }
@@ -320,6 +323,9 @@ void patchQueueThreadProc()
 
 void CreateWorld()
 {
+	surfaceShader = createShader("Shaders/SurfaceVertexShader.glsl", "Shaders/SurfacePixelShader.glsl", NULL);
+	cloudsShader = createShader("Shaders/CloudsVertexShader.glsl", "Shaders/CloudsPixelShader.glsl", NULL);
+	
 	createCloudsMap();
 	createCloudsTexture();
 	initRootMapPatch(rootMapPatch, MapMin, MapMax);
@@ -464,6 +470,52 @@ Frus calcFrus(const Matrix& M, float aspect, float fov)
 	return f;
 }
 
+void drawClouds(const Vector& viewer)
+{
+	glShadeModel(GL_SMOOTH);
+	glDisable(GL_TEXTURE_2D);
+	glDisable(GL_BLEND);
+	glDisable(GL_ALPHA_TEST);
+	Vector cMin(-13500,2000,-13500), cMax(13500,2000,13500);
+	float dX = 100, dZ = 100;
+	for(float z=cMin.z; z<cMax.z; z+=dZ){
+		int j1 = int((z - CloudsMin.z) / (CloudsMax.z-CloudsMin.z) * (CloudsReso-1));
+		int j2 = int((z+dZ - CloudsMin.z) / (CloudsMax.z-CloudsMin.z) * (CloudsReso-1));
+		
+		glBegin(GL_QUAD_STRIP);
+		for(float x=cMin.x; x<cMax.x; x+=dX){
+			int i = int((x - CloudsMin.x) / (CloudsMax.x-CloudsMin.x) * (CloudsReso-1));
+			float k1 = cloudsMap[j1 * CloudsReso + i];
+			float k2 = cloudsMap[j2 * CloudsReso + i];
+			float s1 = k1 * .3f + .7f;
+			float s2 = k2 * .3f + .7f;
+			Vector v1(x, cMin.y+k1*500, z);
+			Vector v2(x, cMin.y+k2*500, z+dZ);
+			glColor4f(s1,s1,s1,k1);
+			glVertex(v1);
+			glColor4f(s2,s2,s2,k2);
+			glVertex(v2);
+		}
+		glEnd();
+		
+		glBegin(GL_QUAD_STRIP);
+		for(float x=cMin.x; x<cMax.x; x+=dX){
+			int i = int((x - CloudsMin.x) / (CloudsMax.x-CloudsMin.x) * (CloudsReso-1));
+			float k1 = cloudsMap[j1 * CloudsReso + i];
+			float k2 = cloudsMap[j2 * CloudsReso + i];
+			float s1 = k1 * -.3f + .7f;
+			float s2 = k2 * -.3f + .7f;
+			Vector v1(x, cMin.y-k1*100, z);
+			Vector v2(x, cMin.y-k2*100, z+dZ);
+			glColor4f(s2,s2,s2,k2);
+			glVertex(v2);
+			glColor4f(s1,s1,s1,k1);
+			glVertex(v1);
+		}
+		glEnd();
+	}
+}
+
 void drawCumulusClouds()
 {
 	glEnable(GL_BLEND);
@@ -503,8 +555,9 @@ void RenderWorld(const Matrix& cameraMatrix, float aspect, float fov, const Vect
 	setShaderVector(surfaceShader, "vLightDir", vLightDir);
 	drawPatchRecur(rootMapPatch, f);
 	
-	glUseProgram(0);
-	drawCumulusClouds();
+	glUseProgram(cloudsShader);
+	//drawCumulusClouds();
+	drawClouds(cameraMatrix.origin);
 	glDisable(GL_BLEND);
 	glColor3f(1,1,1);
 	drawFrustumForMatrix(G, aspect, fov);

@@ -62,7 +62,6 @@ void glSphereQuarter(const Vector& K, const Vector& A, const Vector& B, const Ve
 #include <IcosahedronRenderPiece.h>
 #include <GL/ShaderFunctions.h>
 extern void makeScreenshot(HWND window, const char* fileName);
-extern GLuint createShader(const char* VertexShaderFileName, const char* PixelShaderFileName, const char* GeometryShaderFileName);
 extern GLuint subdivideIcosahedronDisplayList(int depth);
 extern int createAtmosphereDisplayList();
 extern void centerWindow(HWND window, int width, int height);
@@ -105,7 +104,6 @@ struct View
 	}
 };
 
-GLuint surfaceShader = 0;
 
 struct Game
 {
@@ -180,7 +178,6 @@ struct Game
 		oneLightMoonProgram = createShader("Shaders/OneLightMoonVertexShader.glsl", "Shaders/OneLightMoonPixelShader.glsl", NULL);
 		addShineProgram = createShader("Shaders/AdditiveShinyVertexShader.glsl", "Shaders/AdditiveShinyPixelShader.glsl", NULL);
 		//checkerProgram = createShader("Shaders/CheckerVertexShader.glsl", "Shaders/CheckerPixelShader.glsl", NULL);
-		surfaceShader = createShader("Shaders/SurfaceVertexShader.glsl", "Shaders/SurfacePixelShader.glsl", NULL);
 		atmoDispList = createAtmosphereDisplayList();
 		CreateWorld();
 		

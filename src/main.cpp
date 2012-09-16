@@ -344,7 +344,7 @@ struct Game
 			setupViewerProjection(clientRect);
 			glMatrixMode(GL_MODELVIEW);
 			glLoadMatrix(Matrix(cameraMatrix.axes, ZeroVector).in(UnitMatrix));
-			glEnable(GL_DEPTH_TEST);
+			glDisable(GL_DEPTH_TEST);
 			glEnable(GL_BLEND);
 			glBlendFunc(GL_ONE, GL_ONE);
 			glEnable(GL_CULL_FACE);
@@ -376,8 +376,43 @@ struct Game
 				glDisable(GL_FOG);
 				glCullFace(GL_FRONT);
 				glShadeModel(GL_SMOOTH);
-				glScalef(5,5,5);
-				glCallList(atmoDispList);
+				glPushMatrix();
+					glScalef(5,5,5);
+					glCallList(atmoDispList);
+				glPopMatrix();
+			}
+			if(1){//high altitude clouds
+				glUseProgram(0);
+				glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+				glEnable(GL_TEXTURE_2D);
+				extern GLuint cloudsTexture;
+				glBindTexture(GL_TEXTURE_2D, cloudsTexture);
+				glDisable(GL_FOG);
+				glShadeModel(GL_SMOOTH);
+				glColor4f(1,1,1,.5f);
+				glPushMatrix();
+					glScalef(55,3,55);
+					//draw canopy
+					const int ResoX = 9, ResoZ = 9;
+					for(int j=0; j<ResoZ-1; j++){
+						float v1 = float(j) / float(ResoZ-1);
+						float v2 = float(j+1) / float(ResoZ-1);
+						float z1 = lerp(-1.f, 1.f, v1);
+						float z2 = lerp(-1.f, 1.f, v2);
+						glBegin(GL_QUAD_STRIP);
+							for(int i=0; i<ResoX; i++){
+								float u = float(i) / float(ResoX-1);
+								float x = lerp(-1.f, 1.f, u);
+								float y1 = (1-x*x) * (1-z1*z1);
+								float y2 = (1-x*x) * (1-z2*z2);
+								glTexCoord2f(u, v1);
+								glVertex3f(x, y1, z1);
+								glTexCoord2f(u, v2);
+								glVertex3f(x, y2, z2);
+							}
+						glEnd();
+					}
+				glPopMatrix();
 			}
 		}
 		glUseProgram(0);

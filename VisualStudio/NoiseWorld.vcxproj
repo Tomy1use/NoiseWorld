@@ -92,6 +92,7 @@
     <ClCompile Include="..\src\NoiseWorld.cpp" />
     <ClCompile Include="..\src\PerlinNoise.cpp" />
     <ClCompile Include="..\src\Screenshot.cpp" />
+    <ClCompile Include="..\src\SkyDome.cpp" />
     <ClCompile Include="..\src\TorusFromEdges.cpp" />
     <ClCompile Include="..\src\Win32\CenterWindow.cpp" />
     <ClCompile Include="..\src\WriteGIF.cpp" />

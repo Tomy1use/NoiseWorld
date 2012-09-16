@@ -16,9 +16,9 @@ static Vector skyColor(float y)
 	return lerp(c2, c1, y);
 }
 
-int createAtmosphereDisplayList()
+GLuint createAtmosphereDisplayList()
 {
-	int dispList= glGenLists(1);
+	GLuint dispList= glGenLists(1);
 	const int ResoV = 12, ResoH = 12;
 	glNewList(dispList, GL_COMPILE);
 		for(int j=-ResoV; j<ResoV-1; j++){

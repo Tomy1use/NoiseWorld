@@ -377,12 +377,10 @@ void drawPatchRecur(MapPatch& patch, const Frus& frus)
 			drawPatchRecur(patch.children[i], frus);
 		}
 	}else{
-		glEnable(GL_TEXTURE_2D);
 		glBindTexture(GL_TEXTURE_2D, patch.heightTexture);
 		setShaderVector(surfaceShader, "boxMin", patch.boxMin);
 		setShaderVector(surfaceShader, "boxMax", patch.boxMax);
 		setShaderTexture(surfaceShader, "heightMap", 0);
-		//glCallList(patch.dispList);
 		glCallList(patchDispList);
 	}
 }
@@ -487,8 +485,8 @@ void drawClouds(const Vector& viewer)
 			int i = int((x - CloudsMin.x) / (CloudsMax.x-CloudsMin.x) * (CloudsReso-1));
 			float k1 = cloudsMap[j1 * CloudsReso + i];
 			float k2 = cloudsMap[j2 * CloudsReso + i];
-			float s1 = k1 * .3f + .7f;
-			float s2 = k2 * .3f + .7f;
+			float s1 = k1 * .2f + .8f;
+			float s2 = k2 * .2f + .8f;
 			Vector v1(x, cMin.y+k1*500, z);
 			Vector v2(x, cMin.y+k2*500, z+dZ);
 			glColor4f(s1,s1,s1,k1);
@@ -503,8 +501,8 @@ void drawClouds(const Vector& viewer)
 			int i = int((x - CloudsMin.x) / (CloudsMax.x-CloudsMin.x) * (CloudsReso-1));
 			float k1 = cloudsMap[j1 * CloudsReso + i];
 			float k2 = cloudsMap[j2 * CloudsReso + i];
-			float s1 = k1 * -.3f + .7f;
-			float s2 = k2 * -.3f + .7f;
+			float s1 = k1 * -.2f + .8f;
+			float s2 = k2 * -.2f + .8f;
 			Vector v1(x, cMin.y-k1*100, z);
 			Vector v2(x, cMin.y-k2*100, z+dZ);
 			glColor4f(s2,s2,s2,k2);
@@ -521,6 +519,7 @@ void drawCumulusClouds()
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	glEnable(GL_TEXTURE_2D);
+	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, cloudsTexture);
 	glDisable(GL_CULL_FACE);
 	glBegin(GL_QUADS);
@@ -550,13 +549,21 @@ void RenderWorld(const Matrix& cameraMatrix, float aspect, float fov, const Vect
 	glFogf(GL_FOG_DENSITY, .00003f);
 	glShadeModel(GL_FLAT);
 	
-	
+	glDisable(GL_FOG);
+	glDisable(GL_BLEND);
 	glUseProgram(surfaceShader);
 	setShaderVector(surfaceShader, "vLightDir", vLightDir);
+	setShaderVector(surfaceShader, "cloudsBoxMin", CloudsMin);
+	setShaderVector(surfaceShader, "cloudsBoxMax", CloudsMax);
+	setShaderTexture(surfaceShader, "cloudsMap", 1);
+	glActiveTexture(GL_TEXTURE0+1);
+	glBindTexture(GL_TEXTURE_2D, cloudsTexture);
+	glActiveTexture(GL_TEXTURE0);
 	drawPatchRecur(rootMapPatch, f);
 	
-	glUseProgram(cloudsShader);
+	//glUseProgram(0);
 	//drawCumulusClouds();
+	glUseProgram(cloudsShader);
 	drawClouds(cameraMatrix.origin);
 	glDisable(GL_BLEND);
 	glColor3f(1,1,1);

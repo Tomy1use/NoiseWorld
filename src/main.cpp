@@ -350,11 +350,11 @@ struct Game
 			glEnable(GL_CULL_FACE);
 			if(1){//moon
 				glCullFace(GL_BACK);
-				glEnable(GL_TEXTURE_3D);
+				glActiveTexture(GL_TEXTURE0);
 				glBindTexture(GL_TEXTURE_3D, moonTex);
 				glUseProgram(oneLightMoonProgram);
 				setShaderVector(oneLightMoonProgram, "vLightDir", cameraMatrix.axes.in(sunDir));
-				setShaderTexture(oneLightMoonProgram, "MoonTex", 0);
+				setShaderTexture(oneLightMoonProgram, "MoonMap", 0);
 				glPushMatrix();
 				glTranslate(Vector(-10, 3, 7));
 					glColor3f(.3f, .3f, .3f);
@@ -398,7 +398,6 @@ struct Game
 		glUseProgram(0);
 		glDisable(GL_BLEND);
 		glEnable(GL_TEXTURE_2D);
-		glActiveTexture(GL_TEXTURE0);
 		RenderWorld(cameraMatrix, float(clientRect.right)/float(clientRect.bottom), fov, cameraMatrix.axes.in(sunDir));
 		glDisable(GL_TEXTURE_2D);
 

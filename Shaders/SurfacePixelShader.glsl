@@ -12,6 +12,6 @@ void main()
 		gl_FragColor = 1.0 - gl_FragColor;
 	}
 	
-	gl_FragColor = mix(vec4(1,1,1,1), gl_FragColor, fogFactor);
+	gl_FragColor = mix(vec4(.8,.8,1,1), gl_FragColor, fogFactor);
 }
 
